@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 // Mock data
-const orders = [
+const initialOrders = [
   { 
     id: 1, 
     customer: 'John Doe', 
@@ -46,6 +47,44 @@ const orders = [
 
 const Orders: React.FC = () => {
   const { t, language } = useLanguage();
+  const { toast } = useToast();
+  const [orders, setOrders] = useState(initialOrders);
+
+  const handleAddOrder = () => {
+    toast({
+      title: "Add Order",
+      description: "Add order functionality will be implemented here",
+    });
+    console.log("Add order clicked");
+  };
+
+  const handleViewDetails = (orderId: number) => {
+    const order = orders.find(o => o.id === orderId);
+    toast({
+      title: "Order Details",
+      description: `Viewing details for order #${orderId} - ${order?.product}`,
+    });
+    console.log("View details clicked for order ID:", orderId);
+  };
+
+  const handleEditOrder = (orderId: number) => {
+    toast({
+      title: "Edit Order",
+      description: `Editing order with ID: ${orderId}`,
+    });
+    console.log("Edit order clicked for ID:", orderId);
+  };
+
+  const handleDeleteOrder = (orderId: number) => {
+    const updatedOrders = orders.filter(order => order.id !== orderId);
+    setOrders(updatedOrders);
+    toast({
+      title: "Order Deleted",
+      description: "Order has been successfully deleted",
+      variant: "destructive",
+    });
+    console.log("Delete order clicked for ID:", orderId);
+  };
 
   const getStatusBadge = (status: string) => {
     switch(status) {
@@ -67,9 +106,9 @@ const Orders: React.FC = () => {
       <div className={`${language === 'ar' ? 'rtl' : 'ltr'}`}>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">{t('orders')}</h1>
-          <Button>
+          <Button onClick={handleAddOrder}>
             <Plus className="mr-2 h-4 w-4" /> 
-            {t('orders')}
+            Add {t('orders')}
           </Button>
         </div>
 
@@ -93,9 +132,30 @@ const Orders: React.FC = () => {
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">Details</Button>
-                      <Button variant="outline" size="sm">Edit</Button>
-                      <Button variant="destructive" size="sm">Delete</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewDetails(order.id)}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        Details
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEditOrder(order.id)}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => handleDeleteOrder(order.id)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>

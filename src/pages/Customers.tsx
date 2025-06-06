@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AddCustomerDialog from '../components/dialogs/AddCustomerDialog';
 
 // Mock data
 const initialCustomers = [
@@ -25,13 +26,24 @@ const Customers: React.FC = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [customers, setCustomers] = useState(initialCustomers);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   const handleAddCustomer = () => {
+    setShowAddDialog(true);
+    console.log("Add customer dialog opened");
+  };
+
+  const handleSubmitCustomer = (newCustomer: { name: string; phone: string; address: string; notes: string }) => {
+    const customer = {
+      id: Math.max(...customers.map(c => c.id)) + 1,
+      ...newCustomer
+    };
+    setCustomers([...customers, customer]);
     toast({
-      title: "Add Customer",
-      description: "Add customer functionality will be implemented here",
+      title: "Customer Added",
+      description: `${newCustomer.name} has been successfully added`,
     });
-    console.log("Add customer clicked");
+    console.log("New customer added:", customer);
   };
 
   const handleEditCustomer = (customerId: number) => {
@@ -107,6 +119,12 @@ const Customers: React.FC = () => {
             </TableBody>
           </Table>
         </div>
+
+        <AddCustomerDialog 
+          open={showAddDialog} 
+          onOpenChange={setShowAddDialog}
+          onSubmit={handleSubmitCustomer}
+        />
       </div>
     </Layout>
   );

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AddProductDialog from '../components/dialogs/AddProductDialog';
 
 // Mock data
 const initialProducts = [
@@ -45,13 +46,24 @@ const Products: React.FC = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [products, setProducts] = useState(initialProducts);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   const handleAddProduct = () => {
+    setShowAddDialog(true);
+    console.log("Add product dialog opened");
+  };
+
+  const handleSubmitProduct = (newProduct: { name: string; price: number; description: string; frontImage: string; backImage: string }) => {
+    const product = {
+      id: Math.max(...products.map(p => p.id)) + 1,
+      ...newProduct
+    };
+    setProducts([...products, product]);
     toast({
-      title: "Add Product",
-      description: "Add product functionality will be implemented here",
+      title: "Product Added",
+      description: `${newProduct.name} has been successfully added`,
     });
-    console.log("Add product clicked");
+    console.log("New product added:", product);
   };
 
   const handleEditProduct = (productId: number) => {
@@ -124,6 +136,12 @@ const Products: React.FC = () => {
             </Card>
           ))}
         </div>
+
+        <AddProductDialog 
+          open={showAddDialog} 
+          onOpenChange={setShowAddDialog}
+          onSubmit={handleSubmitProduct}
+        />
       </div>
     </Layout>
   );

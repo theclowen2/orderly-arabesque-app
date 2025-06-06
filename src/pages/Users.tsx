@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AddUserDialog from '../components/dialogs/AddUserDialog';
 
 // Mock data
 const initialUsers = [
@@ -25,13 +26,24 @@ const Users: React.FC = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [users, setUsers] = useState(initialUsers);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   const handleAddUser = () => {
+    setShowAddDialog(true);
+    console.log("Add user dialog opened");
+  };
+
+  const handleSubmitUser = (newUser: { name: string; email: string; role: string; permissions: string[] }) => {
+    const user = {
+      id: Math.max(...users.map(u => u.id)) + 1,
+      ...newUser
+    };
+    setUsers([...users, user]);
     toast({
-      title: "Add User",
-      description: "Add user functionality will be implemented here",
+      title: "User Added",
+      description: `${newUser.name} has been successfully added`,
     });
-    console.log("Add user clicked");
+    console.log("New user added:", user);
   };
 
   const handleEditUser = (userId: number) => {
@@ -107,6 +119,12 @@ const Users: React.FC = () => {
             </TableBody>
           </Table>
         </div>
+
+        <AddUserDialog 
+          open={showAddDialog} 
+          onOpenChange={setShowAddDialog}
+          onSubmit={handleSubmitUser}
+        />
       </div>
     </Layout>
   );

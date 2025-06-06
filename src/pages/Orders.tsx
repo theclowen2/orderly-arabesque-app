@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Plus, Eye, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AddOrderDialog from '../components/dialogs/AddOrderDialog';
 
 // Mock data
 const initialOrders = [
@@ -49,13 +50,34 @@ const Orders: React.FC = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [orders, setOrders] = useState(initialOrders);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const handleAddOrder = () => {
+    setIsAddDialogOpen(true);
+    console.log("Add order dialog opened");
+  };
+
+  const handleAddOrderSubmit = (orderData: {
+    customer: string;
+    product: string;
+    frontImage: string;
+    backImage: string;
+    date: string;
+    status: string;
+  }) => {
+    const newOrder = {
+      id: Math.max(...orders.map(o => o.id)) + 1,
+      ...orderData,
+      frontImage: orderData.frontImage || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158',
+      backImage: orderData.backImage || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158'
+    };
+    
+    setOrders([...orders, newOrder]);
     toast({
-      title: "Add Order",
-      description: "Add order functionality will be implemented here",
+      title: "Order Added",
+      description: `Order for ${orderData.customer} has been created successfully`,
     });
-    console.log("Add order clicked");
+    console.log("New order added:", newOrder);
   };
 
   const handleViewDetails = (orderId: number) => {
@@ -163,6 +185,12 @@ const Orders: React.FC = () => {
             </TableBody>
           </Table>
         </div>
+
+        <AddOrderDialog
+          open={isAddDialogOpen}
+          onOpenChange={setIsAddDialogOpen}
+          onSubmit={handleAddOrderSubmit}
+        />
       </div>
     </Layout>
   );

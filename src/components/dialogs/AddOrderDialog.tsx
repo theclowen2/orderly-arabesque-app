@@ -34,6 +34,20 @@ interface AddOrderDialogProps {
   }) => void;
 }
 
+// Mock data for customers and products - in a real app, these would come from props or context
+const mockCustomers = [
+  { id: 1, name: 'John Doe' },
+  { id: 2, name: 'Jane Smith' },
+  { id: 3, name: 'Mike Johnson' },
+  { id: 4, name: 'مايكل' },
+];
+
+const mockProducts = [
+  { id: 1, name: 'Custom Cabinet' },
+  { id: 2, name: 'Wooden Table' },
+  { id: 3, name: 'Kitchen Drawer' },
+];
+
 const AddOrderDialog: React.FC<AddOrderDialogProps> = ({ open, onOpenChange, onSubmit }) => {
   const { t } = useLanguage();
   const [formData, setFormData] = useState({
@@ -91,27 +105,35 @@ const AddOrderDialog: React.FC<AddOrderDialogProps> = ({ open, onOpenChange, onS
               <Label htmlFor="customer" className="text-right">
                 {t('name')}
               </Label>
-              <Input
-                id="customer"
-                value={formData.customer}
-                onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
-                className="col-span-3"
-                placeholder="Customer name"
-                required
-              />
+              <Select value={formData.customer} onValueChange={(value) => setFormData({ ...formData, customer: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mockCustomers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.name}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="product" className="text-right">
                 {t('products')}
               </Label>
-              <Input
-                id="product"
-                value={formData.product}
-                onChange={(e) => setFormData({ ...formData, product: e.target.value })}
-                className="col-span-3"
-                placeholder="Product name"
-                required
-              />
+              <Select value={formData.product} onValueChange={(value) => setFormData({ ...formData, product: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mockProducts.map((product) => (
+                    <SelectItem key={product.id} value={product.name}>
+                      {product.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="frontImage" className="text-right">

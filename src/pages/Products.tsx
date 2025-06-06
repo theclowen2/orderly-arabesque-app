@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -10,10 +10,11 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Plus } from 'lucide-react';
+import { Plus, Edit, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 // Mock data
-const products = [
+const initialProducts = [
   { 
     id: 1, 
     name: 'Custom Cabinet', 
@@ -42,15 +43,44 @@ const products = [
 
 const Products: React.FC = () => {
   const { t, language } = useLanguage();
+  const { toast } = useToast();
+  const [products, setProducts] = useState(initialProducts);
+
+  const handleAddProduct = () => {
+    toast({
+      title: "Add Product",
+      description: "Add product functionality will be implemented here",
+    });
+    console.log("Add product clicked");
+  };
+
+  const handleEditProduct = (productId: number) => {
+    toast({
+      title: "Edit Product",
+      description: `Editing product with ID: ${productId}`,
+    });
+    console.log("Edit product clicked for ID:", productId);
+  };
+
+  const handleDeleteProduct = (productId: number) => {
+    const updatedProducts = products.filter(product => product.id !== productId);
+    setProducts(updatedProducts);
+    toast({
+      title: "Product Deleted",
+      description: "Product has been successfully deleted",
+      variant: "destructive",
+    });
+    console.log("Delete product clicked for ID:", productId);
+  };
 
   return (
     <Layout>
       <div className={`${language === 'ar' ? 'rtl' : 'ltr'}`}>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">{t('products')}</h1>
-          <Button>
+          <Button onClick={handleAddProduct}>
             <Plus className="mr-2 h-4 w-4" /> 
-            {t('products')}
+            Add {t('products')}
           </Button>
         </div>
 
@@ -74,8 +104,22 @@ const Products: React.FC = () => {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
-                <Button variant="outline" size="sm">Edit</Button>
-                <Button variant="destructive" size="sm">Delete</Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleEditProduct(product.id)}
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => handleDeleteProduct(product.id)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </Button>
               </CardFooter>
             </Card>
           ))}

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus } from 'lucide-react';
+import { Plus, Edit, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 // Mock data
-const customers = [
+const initialCustomers = [
   { id: 1, name: 'John Doe', phone: '+1 234-567-8901', address: '123 Main St, City', notes: 'Regular customer' },
   { id: 2, name: 'Jane Smith', phone: '+1 234-567-8902', address: '456 Park Ave, Town', notes: 'Prefers email contact' },
   { id: 3, name: 'Mike Johnson', phone: '+1 234-567-8903', address: '789 Oak Dr, Village', notes: 'New customer' },
@@ -22,15 +23,44 @@ const customers = [
 
 const Customers: React.FC = () => {
   const { t, language } = useLanguage();
+  const { toast } = useToast();
+  const [customers, setCustomers] = useState(initialCustomers);
+
+  const handleAddCustomer = () => {
+    toast({
+      title: "Add Customer",
+      description: "Add customer functionality will be implemented here",
+    });
+    console.log("Add customer clicked");
+  };
+
+  const handleEditCustomer = (customerId: number) => {
+    toast({
+      title: "Edit Customer",
+      description: `Editing customer with ID: ${customerId}`,
+    });
+    console.log("Edit customer clicked for ID:", customerId);
+  };
+
+  const handleDeleteCustomer = (customerId: number) => {
+    const updatedCustomers = customers.filter(customer => customer.id !== customerId);
+    setCustomers(updatedCustomers);
+    toast({
+      title: "Customer Deleted",
+      description: "Customer has been successfully deleted",
+      variant: "destructive",
+    });
+    console.log("Delete customer clicked for ID:", customerId);
+  };
 
   return (
     <Layout>
       <div className={`${language === 'ar' ? 'rtl' : 'ltr'}`}>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">{t('customers')}</h1>
-          <Button>
+          <Button onClick={handleAddCustomer}>
             <Plus className="mr-2 h-4 w-4" /> 
-            {t('customers')}
+            Add {t('customers')}
           </Button>
         </div>
 
@@ -54,8 +84,22 @@ const Customers: React.FC = () => {
                   <TableCell>{customer.notes}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">Edit</Button>
-                      <Button variant="destructive" size="sm">Delete</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEditCustomer(customer.id)}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => handleDeleteCustomer(customer.id)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>

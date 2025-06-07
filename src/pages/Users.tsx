@@ -14,26 +14,38 @@ import {
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddUserDialog from '../components/dialogs/AddUserDialog';
+import EditUserDialog from '../components/dialogs/EditUserDialog';
 
-// Mock data
+// Updated mock data with passwords
 const initialUsers = [
-  { id: 1, name: 'Admin User', email: 'admin@example.com', role: 'Admin', permissions: ['All'] },
-  { id: 2, name: 'Manager User', email: 'manager@example.com', role: 'Manager', permissions: ['Read', 'Create', 'Update'] },
-  { id: 3, name: 'Viewer User', email: 'viewer@example.com', role: 'Viewer', permissions: ['Read'] },
+  { id: 1, name: 'Admin User', email: 'admin@example.com', password: 'admin123', role: 'Admin', permissions: ['All'] },
+  { id: 2, name: 'Manager User', email: 'manager@example.com', password: 'manager123', role: 'Manager', permissions: ['Read', 'Create', 'Update'] },
+  { id: 3, name: 'Viewer User', email: 'viewer@example.com', password: 'viewer123', role: 'Viewer', permissions: ['Read'] },
 ];
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  permissions: string[];
+}
 
 const Users: React.FC = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState<User[]>(initialUsers);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
   const handleAddUser = () => {
     setShowAddDialog(true);
     console.log("Add user dialog opened");
   };
 
-  const handleSubmitUser = (newUser: { name: string; email: string; role: string; permissions: string[] }) => {
+  const handleSubmitUser = (newUser: { name: string; email: string; password: string; role: string; permissions: string[] }) => {
     const user = {
       id: Math.max(...users.map(u => u.id)) + 1,
       ...newUser
@@ -47,11 +59,21 @@ const Users: React.FC = () => {
   };
 
   const handleEditUser = (userId: number) => {
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      setEditingUser(user);
+      setShowEditDialog(true);
+      console.log("Edit user clicked for ID:", userId);
+    }
+  };
+
+  const handleUpdateUser = (updatedUser: User) => {
+    setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
     toast({
-      title: "Edit User",
-      description: `Editing user with ID: ${userId}`,
+      title: "User Updated",
+      description: `${updatedUser.name} has been successfully updated`,
     });
-    console.log("Edit user clicked for ID:", userId);
+    console.log("User updated:", updatedUser);
   };
 
   const handleDeleteUser = (userId: number) => {
@@ -124,6 +146,13 @@ const Users: React.FC = () => {
           open={showAddDialog} 
           onOpenChange={setShowAddDialog}
           onSubmit={handleSubmitUser}
+        />
+
+        <EditUserDialog 
+          open={showEditDialog} 
+          onOpenChange={setShowEditDialog}
+          onSubmit={handleUpdateUser}
+          user={editingUser}
         />
       </div>
     </Layout>

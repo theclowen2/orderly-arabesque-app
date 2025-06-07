@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,19 +14,23 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-interface AddUserDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (user: {
-    name: string;
-    email: string;
-    password: string;
-    role: string;
-    permissions: string[];
-  }) => void;
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  permissions: string[];
 }
 
-const AddUserDialog: React.FC<AddUserDialogProps> = ({ open, onOpenChange, onSubmit }) => {
+interface EditUserDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (user: User) => void;
+  user: User | null;
+}
+
+const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onOpenChange, onSubmit, user }) => {
   const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: '',
@@ -36,17 +40,29 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ open, onOpenChange, onSub
     permissions: [] as string[]
   });
 
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name,
+        email: user.email,
+        password: user.password,
+        role: user.role,
+        permissions: user.permissions
+      });
+    }
+  }, [user]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.name && formData.email && formData.password && formData.role) {
+    if (formData.name && formData.email && formData.password && formData.role && user) {
       const permissions = formData.role === 'Admin' ? ['All'] : 
                          formData.role === 'Manager' ? ['Read', 'Create', 'Update'] : 
                          ['Read'];
       onSubmit({
+        ...user,
         ...formData,
         permissions
       });
-      setFormData({ name: '', email: '', password: '', role: '', permissions: [] });
       onOpenChange(false);
     }
   };
@@ -55,19 +71,19 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ open, onOpenChange, onSub
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add New User</DialogTitle>
+          <DialogTitle>Edit User</DialogTitle>
           <DialogDescription>
-            Create a new user account with the specified role and permissions.
+            Update user account information, role and permissions.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
+              <Label htmlFor="edit-name" className="text-right">
                 {t('name')}
               </Label>
               <Input
-                id="name"
+                id="edit-name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="col-span-3"
@@ -75,11 +91,11 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ open, onOpenChange, onSub
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
+              <Label htmlFor="edit-email" className="text-right">
                 {t('email')}
               </Label>
               <Input
-                id="email"
+                id="edit-email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -88,11 +104,11 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ open, onOpenChange, onSub
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="password" className="text-right">
+              <Label htmlFor="edit-password" className="text-right">
                 Password
               </Label>
               <Input
-                id="password"
+                id="edit-password"
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -101,10 +117,10 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ open, onOpenChange, onSub
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="role" className="text-right">
+              <Label htmlFor="edit-role" className="text-right">
                 Role
               </Label>
-              <Select onValueChange={(value) => setFormData({ ...formData, role: value })}>
+              <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
@@ -120,7 +136,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ open, onOpenChange, onSub
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add User</Button>
+            <Button type="submit">Update User</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -128,4 +144,4 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ open, onOpenChange, onSub
   );
 };
 
-export default AddUserDialog;
+export default EditUserDialog;

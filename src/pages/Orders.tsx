@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -14,6 +13,8 @@ import {
 import { Plus, Eye, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddOrderDialog from '../components/dialogs/AddOrderDialog';
+import EditOrderDialog from '../components/dialogs/EditOrderDialog';
+import OrderDetailsDialog from '../components/dialogs/OrderDetailsDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -21,6 +22,10 @@ const Orders: React.FC = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const queryClient = useQueryClient();
 
   // Fetch orders with customer and product data
@@ -38,6 +43,44 @@ const Orders: React.FC = () => {
       
       if (error) throw error;
       return data;
+    }
+  });
+
+  // Update order mutation
+  const updateOrderMutation = useMutation({
+    mutationFn: async (updatedOrder: any) => {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({
+          customer_id: updatedOrder.customer_id,
+          product_id: updatedOrder.product_id,
+          status: updatedOrder.status,
+          order_date: updatedOrder.order_date,
+          notes: updatedOrder.notes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', updatedOrder.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast({
+        title: "Order Updated",
+        description: "Order has been successfully updated",
+      });
+      console.log("Order updated:", data);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update order",
+        variant: "destructive",
+      });
+      console.error("Error updating order:", error);
     }
   });
 
@@ -139,19 +182,24 @@ const Orders: React.FC = () => {
 
   const handleViewDetails = (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
-    toast({
-      title: "Order Details",
-      description: `Viewing details for order #${orderId} - ${order?.products?.name}`,
-    });
-    console.log("View details clicked for order ID:", orderId);
+    if (order) {
+      setSelectedOrder(order);
+      setShowDetailsDialog(true);
+      console.log("View details clicked for order ID:", orderId);
+    }
   };
 
   const handleEditOrder = (orderId: string) => {
-    toast({
-      title: "Edit Order",
-      description: `Editing order with ID: ${orderId}`,
-    });
-    console.log("Edit order clicked for ID:", orderId);
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      setEditingOrder(order);
+      setShowEditDialog(true);
+      console.log("Edit order clicked for ID:", orderId);
+    }
+  };
+
+  const handleUpdateOrder = (updatedOrder: any) => {
+    updateOrderMutation.mutate(updatedOrder);
   };
 
   const handleDeleteOrder = (orderId: string) => {
@@ -252,6 +300,19 @@ const Orders: React.FC = () => {
           open={isAddDialogOpen}
           onOpenChange={setIsAddDialogOpen}
           onSubmit={handleAddOrderSubmit}
+        />
+
+        <EditOrderDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          onSubmit={handleUpdateOrder}
+          order={editingOrder}
+        />
+
+        <OrderDetailsDialog
+          open={showDetailsDialog}
+          onOpenChange={setShowDetailsDialog}
+          order={selectedOrder}
         />
       </div>
     </Layout>

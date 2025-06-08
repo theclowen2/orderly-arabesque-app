@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -14,6 +13,7 @@ import {
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddCustomerDialog from '../components/dialogs/AddCustomerDialog';
+import EditCustomerDialog from '../components/dialogs/EditCustomerDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -21,6 +21,8 @@ const Customers: React.FC = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const queryClient = useQueryClient();
 
   // Fetch customers from Supabase
@@ -72,6 +74,43 @@ const Customers: React.FC = () => {
     }
   });
 
+  // Update customer mutation
+  const updateCustomerMutation = useMutation({
+    mutationFn: async (updatedCustomer: any) => {
+      const { data, error } = await supabase
+        .from('customers')
+        .update({
+          name: updatedCustomer.name,
+          phone: updatedCustomer.phone,
+          address: updatedCustomer.address,
+          notes: updatedCustomer.notes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', updatedCustomer.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast({
+        title: "Customer Updated",
+        description: `${data.name} has been successfully updated`,
+      });
+      console.log("Customer updated:", data);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update customer",
+        variant: "destructive",
+      });
+      console.error("Error updating customer:", error);
+    }
+  });
+
   // Delete customer mutation
   const deleteCustomerMutation = useMutation({
     mutationFn: async (customerId: string) => {
@@ -110,11 +149,16 @@ const Customers: React.FC = () => {
   };
 
   const handleEditCustomer = (customerId: string) => {
-    toast({
-      title: "Edit Customer",
-      description: `Editing customer with ID: ${customerId}`,
-    });
-    console.log("Edit customer clicked for ID:", customerId);
+    const customer = customers.find(c => c.id === customerId);
+    if (customer) {
+      setEditingCustomer(customer);
+      setShowEditDialog(true);
+      console.log("Edit customer clicked for ID:", customerId);
+    }
+  };
+
+  const handleUpdateCustomer = (updatedCustomer: any) => {
+    updateCustomerMutation.mutate(updatedCustomer);
   };
 
   const handleDeleteCustomer = (customerId: string) => {
@@ -192,6 +236,13 @@ const Customers: React.FC = () => {
           open={showAddDialog} 
           onOpenChange={setShowAddDialog}
           onSubmit={handleSubmitCustomer}
+        />
+
+        <EditCustomerDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          onSubmit={handleUpdateCustomer}
+          customer={editingCustomer}
         />
       </div>
     </Layout>

@@ -13,6 +13,7 @@ import {
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddProductDialog from '../components/dialogs/AddProductDialog';
+import EditProductDialog from '../components/dialogs/EditProductDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -20,6 +21,8 @@ const Products: React.FC = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const queryClient = useQueryClient();
 
   // Fetch products from Supabase
@@ -72,6 +75,44 @@ const Products: React.FC = () => {
     }
   });
 
+  // Update product mutation
+  const updateProductMutation = useMutation({
+    mutationFn: async (updatedProduct: { id: string; name: string; price: number; description: string; front_image: string; back_image: string }) => {
+      const { data, error } = await supabase
+        .from('products')
+        .update({
+          name: updatedProduct.name,
+          price: updatedProduct.price,
+          description: updatedProduct.description,
+          front_image: updatedProduct.front_image,
+          back_image: updatedProduct.back_image,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', updatedProduct.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({
+        title: "Product Updated",
+        description: `${data.name} has been successfully updated`,
+      });
+      console.log("Product updated:", data);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update product",
+        variant: "destructive",
+      });
+      console.error("Error updating product:", error);
+    }
+  });
+
   // Delete product mutation
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
@@ -109,12 +150,14 @@ const Products: React.FC = () => {
     addProductMutation.mutate(newProduct);
   };
 
-  const handleEditProduct = (productId: string) => {
-    toast({
-      title: "Edit Product",
-      description: `Editing product with ID: ${productId}`,
-    });
-    console.log("Edit product clicked for ID:", productId);
+  const handleEditProduct = (product: any) => {
+    setSelectedProduct(product);
+    setShowEditDialog(true);
+    console.log("Edit product clicked for ID:", product.id);
+  };
+
+  const handleUpdateProduct = (updatedProduct: any) => {
+    updateProductMutation.mutate(updatedProduct);
   };
 
   const handleDeleteProduct = (productId: string) => {
@@ -166,7 +209,7 @@ const Products: React.FC = () => {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => handleEditProduct(product.id)}
+                  onClick={() => handleEditProduct(product)}
                 >
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
@@ -189,6 +232,13 @@ const Products: React.FC = () => {
           open={showAddDialog} 
           onOpenChange={setShowAddDialog}
           onSubmit={handleSubmitProduct}
+        />
+
+        <EditProductDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          onSubmit={handleUpdateProduct}
+          product={selectedProduct}
         />
       </div>
     </Layout>

@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 interface AddOrderDialogProps {
   open: boolean;
@@ -33,35 +35,6 @@ interface AddOrderDialogProps {
   }) => void;
 }
 
-// Mock data for customers and products - in a real app, these would come from props or context
-const mockCustomers = [
-  { id: 1, name: 'John Doe' },
-  { id: 2, name: 'Jane Smith' },
-  { id: 3, name: 'Mike Johnson' },
-  { id: 4, name: 'مايكل' },
-];
-
-const mockProducts = [
-  { 
-    id: 1, 
-    name: 'Custom Cabinet', 
-    frontImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158',
-    backImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158'
-  },
-  { 
-    id: 2, 
-    name: 'Wooden Table', 
-    frontImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158',
-    backImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158'
-  },
-  { 
-    id: 3, 
-    name: 'Kitchen Drawer', 
-    frontImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158',
-    backImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158'
-  },
-];
-
 const AddOrderDialog: React.FC<AddOrderDialogProps> = ({ open, onOpenChange, onSubmit }) => {
   const { t } = useLanguage();
   const [formData, setFormData] = useState({
@@ -71,15 +44,45 @@ const AddOrderDialog: React.FC<AddOrderDialogProps> = ({ open, onOpenChange, onS
     status: 'pending'
   });
 
-  const selectedProduct = mockProducts.find(p => p.name === formData.product);
+  // Fetch customers from database
+  const { data: customers = [] } = useQuery({
+    queryKey: ['customers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: open
+  });
+
+  // Fetch products from database
+  const { data: products = [] } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, front_image, back_image')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: open
+  });
+
+  const selectedProduct = products.find(p => p.name === formData.product);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.customer && formData.product && selectedProduct) {
       onSubmit({
         ...formData,
-        frontImage: selectedProduct.frontImage,
-        backImage: selectedProduct.backImage
+        frontImage: selectedProduct.front_image || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158',
+        backImage: selectedProduct.back_image || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158'
       });
       setFormData({
         customer: '',
@@ -111,7 +114,7 @@ const AddOrderDialog: React.FC<AddOrderDialogProps> = ({ open, onOpenChange, onS
                   <SelectValue placeholder="Select customer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockCustomers.map((customer) => (
+                  {customers.map((customer) => (
                     <SelectItem key={customer.id} value={customer.name}>
                       {customer.name}
                     </SelectItem>
@@ -128,7 +131,7 @@ const AddOrderDialog: React.FC<AddOrderDialogProps> = ({ open, onOpenChange, onS
                   <SelectValue placeholder="Select product" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockProducts.map((product) => (
+                  {products.map((product) => (
                     <SelectItem key={product.id} value={product.name}>
                       {product.name}
                     </SelectItem>
@@ -144,13 +147,21 @@ const AddOrderDialog: React.FC<AddOrderDialogProps> = ({ open, onOpenChange, onS
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Front Image</p>
                       <div className="w-full h-20 bg-gray-100 rounded overflow-hidden">
-                        <img src={selectedProduct.frontImage} alt="Front view" className="w-full h-full object-cover" />
+                        <img 
+                          src={selectedProduct.front_image || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158'} 
+                          alt="Front view" 
+                          className="w-full h-full object-cover" 
+                        />
                       </div>
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Back Image</p>
                       <div className="w-full h-20 bg-gray-100 rounded overflow-hidden">
-                        <img src={selectedProduct.backImage} alt="Back view" className="w-full h-full object-cover" />
+                        <img 
+                          src={selectedProduct.back_image || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158'} 
+                          alt="Back view" 
+                          className="w-full h-full object-cover" 
+                        />
                       </div>
                     </div>
                   </div>

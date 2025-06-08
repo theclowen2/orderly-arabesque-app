@@ -15,16 +15,11 @@ import { Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddUserDialog from '../components/dialogs/AddUserDialog';
 import EditUserDialog from '../components/dialogs/EditUserDialog';
-
-// Updated mock data with passwords
-const initialUsers = [
-  { id: 1, name: 'Admin User', email: 'admin@example.com', password: 'admin123', role: 'Admin', permissions: ['All'] },
-  { id: 2, name: 'Manager User', email: 'manager@example.com', password: 'manager123', role: 'Manager', permissions: ['Read', 'Create', 'Update'] },
-  { id: 3, name: 'Viewer User', email: 'viewer@example.com', password: 'viewer123', role: 'Viewer', permissions: ['Read'] },
-];
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
   password: string;
@@ -35,10 +30,125 @@ interface User {
 const Users: React.FC = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>(initialUsers);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const queryClient = useQueryClient();
+
+  // Fetch users from Supabase
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Add user mutation
+  const addUserMutation = useMutation({
+    mutationFn: async (newUser: { name: string; email: string; password: string; role: string; permissions: string[] }) => {
+      const { data, error } = await supabase
+        .from('users')
+        .insert([{
+          name: newUser.name,
+          email: newUser.email,
+          password: newUser.password,
+          role: newUser.role,
+          permissions: newUser.permissions
+        }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast({
+        title: "User Added",
+        description: `${data.name} has been successfully added`,
+      });
+      console.log("New user added:", data);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to add user",
+        variant: "destructive",
+      });
+      console.error("Error adding user:", error);
+    }
+  });
+
+  // Update user mutation
+  const updateUserMutation = useMutation({
+    mutationFn: async (updatedUser: User) => {
+      const { data, error } = await supabase
+        .from('users')
+        .update({
+          name: updatedUser.name,
+          email: updatedUser.email,
+          password: updatedUser.password,
+          role: updatedUser.role,
+          permissions: updatedUser.permissions
+        })
+        .eq('id', updatedUser.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast({
+        title: "User Updated",
+        description: `${data.name} has been successfully updated`,
+      });
+      console.log("User updated:", data);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update user",
+        variant: "destructive",
+      });
+      console.error("Error updating user:", error);
+    }
+  });
+
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast({
+        title: "User Deleted",
+        description: "User has been successfully deleted",
+        variant: "destructive",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete user",
+        variant: "destructive",
+      });
+      console.error("Error deleting user:", error);
+    }
+  });
 
   const handleAddUser = () => {
     setShowAddDialog(true);
@@ -46,19 +156,10 @@ const Users: React.FC = () => {
   };
 
   const handleSubmitUser = (newUser: { name: string; email: string; password: string; role: string; permissions: string[] }) => {
-    const user = {
-      id: Math.max(...users.map(u => u.id)) + 1,
-      ...newUser
-    };
-    setUsers([...users, user]);
-    toast({
-      title: "User Added",
-      description: `${newUser.name} has been successfully added`,
-    });
-    console.log("New user added:", user);
+    addUserMutation.mutate(newUser);
   };
 
-  const handleEditUser = (userId: number) => {
+  const handleEditUser = (userId: string) => {
     const user = users.find(u => u.id === userId);
     if (user) {
       setEditingUser(user);
@@ -68,24 +169,23 @@ const Users: React.FC = () => {
   };
 
   const handleUpdateUser = (updatedUser: User) => {
-    setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
-    toast({
-      title: "User Updated",
-      description: `${updatedUser.name} has been successfully updated`,
-    });
-    console.log("User updated:", updatedUser);
+    updateUserMutation.mutate(updatedUser);
   };
 
-  const handleDeleteUser = (userId: number) => {
-    const updatedUsers = users.filter(user => user.id !== userId);
-    setUsers(updatedUsers);
-    toast({
-      title: "User Deleted",
-      description: "User has been successfully deleted",
-      variant: "destructive",
-    });
+  const handleDeleteUser = (userId: string) => {
+    deleteUserMutation.mutate(userId);
     console.log("Delete user clicked for ID:", userId);
   };
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading users...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -115,7 +215,7 @@ const Users: React.FC = () => {
                   <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.role}</TableCell>
-                  <TableCell>{user.permissions.join(', ')}</TableCell>
+                  <TableCell>{user.permissions?.join(', ')}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <Button 
@@ -130,6 +230,7 @@ const Users: React.FC = () => {
                         variant="destructive" 
                         size="sm"
                         onClick={() => handleDeleteUser(user.id)}
+                        disabled={deleteUserMutation.isPending}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete

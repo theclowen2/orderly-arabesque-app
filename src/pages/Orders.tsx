@@ -14,50 +14,67 @@ import {
 import { Plus, Eye, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddOrderDialog from '../components/dialogs/AddOrderDialog';
-
-// Mock data
-const initialOrders = [
-  { 
-    id: 1, 
-    customer: 'John Doe', 
-    product: 'Custom Cabinet', 
-    frontImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158', 
-    backImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158',
-    date: '2023-05-15',
-    status: 'completed'
-  },
-  { 
-    id: 2, 
-    customer: 'Jane Smith', 
-    product: 'Wooden Table', 
-    frontImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158', 
-    backImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158',
-    date: '2023-05-18',
-    status: 'in-design'
-  },
-  { 
-    id: 3, 
-    customer: 'Mike Johnson', 
-    product: 'Kitchen Drawer', 
-    frontImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158', 
-    backImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158',
-    date: '2023-05-20',
-    status: 'pending'
-  },
-];
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const Orders: React.FC = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
-  const [orders, setOrders] = useState(initialOrders);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Fetch orders with customer and product data
+  const { data: orders = [], isLoading } = useQuery({
+    queryKey: ['orders'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customers (name),
+          products (name, front_image)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Delete order mutation
+  const deleteOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', orderId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast({
+        title: "Order Deleted",
+        description: "Order has been successfully deleted",
+        variant: "destructive",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete order",
+        variant: "destructive",
+      });
+      console.error("Error deleting order:", error);
+    }
+  });
 
   const handleAddOrder = () => {
     setIsAddDialogOpen(true);
     console.log("Add order dialog opened");
   };
 
-  const handleAddOrderSubmit = (orderData: {
+  const handleAddOrderSubmit = async (orderData: {
     customer: string;
     product: string;
     frontImage: string;
@@ -65,31 +82,71 @@ const Orders: React.FC = () => {
     date: string;
     status: string;
   }) => {
-    const newOrder = {
-      id: Math.max(...orders.map(o => o.id)) + 1,
-      ...orderData,
-      frontImage: orderData.frontImage || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158',
-      backImage: orderData.backImage || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158'
-    };
-    
-    setOrders([...orders, newOrder]);
-    toast({
-      title: "Order Added",
-      description: `Order for ${orderData.customer} has been created successfully`,
-    });
-    console.log("New order added:", newOrder);
+    try {
+      // First, get customer and product IDs
+      const { data: customers } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('name', orderData.customer)
+        .single();
+
+      const { data: products } = await supabase
+        .from('products')
+        .select('id')
+        .eq('name', orderData.product)
+        .single();
+
+      if (!customers || !products) {
+        toast({
+          title: "Error",
+          description: "Customer or product not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('orders')
+        .insert([{
+          customer_id: customers.id,
+          product_id: products.id,
+          status: orderData.status as any,
+          order_date: orderData.date,
+          front_image: orderData.frontImage,
+          back_image: orderData.backImage,
+          notes: ''
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast({
+        title: "Order Added",
+        description: `Order for ${orderData.customer} has been created successfully`,
+      });
+      console.log("New order added:", data);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create order",
+        variant: "destructive",
+      });
+      console.error("Error creating order:", error);
+    }
   };
 
-  const handleViewDetails = (orderId: number) => {
+  const handleViewDetails = (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
     toast({
       title: "Order Details",
-      description: `Viewing details for order #${orderId} - ${order?.product}`,
+      description: `Viewing details for order #${orderId} - ${order?.products?.name}`,
     });
     console.log("View details clicked for order ID:", orderId);
   };
 
-  const handleEditOrder = (orderId: number) => {
+  const handleEditOrder = (orderId: string) => {
     toast({
       title: "Edit Order",
       description: `Editing order with ID: ${orderId}`,
@@ -97,14 +154,8 @@ const Orders: React.FC = () => {
     console.log("Edit order clicked for ID:", orderId);
   };
 
-  const handleDeleteOrder = (orderId: number) => {
-    const updatedOrders = orders.filter(order => order.id !== orderId);
-    setOrders(updatedOrders);
-    toast({
-      title: "Order Deleted",
-      description: "Order has been successfully deleted",
-      variant: "destructive",
-    });
+  const handleDeleteOrder = (orderId: string) => {
+    deleteOrderMutation.mutate(orderId);
     console.log("Delete order clicked for ID:", orderId);
   };
 
@@ -122,6 +173,16 @@ const Orders: React.FC = () => {
         return null;
     }
   };
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading orders...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -148,9 +209,9 @@ const Orders: React.FC = () => {
             <TableBody>
               {orders.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.customer}</TableCell>
-                  <TableCell>{order.product}</TableCell>
-                  <TableCell>{order.date}</TableCell>
+                  <TableCell className="font-medium">{order.customers?.name}</TableCell>
+                  <TableCell>{order.products?.name}</TableCell>
+                  <TableCell>{order.order_date}</TableCell>
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
@@ -174,6 +235,7 @@ const Orders: React.FC = () => {
                         variant="destructive" 
                         size="sm"
                         onClick={() => handleDeleteOrder(order.id)}
+                        disabled={deleteOrderMutation.isPending}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete

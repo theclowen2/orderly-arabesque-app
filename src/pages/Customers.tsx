@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -14,19 +14,91 @@ import {
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddCustomerDialog from '../components/dialogs/AddCustomerDialog';
-
-// Mock data
-const initialCustomers = [
-  { id: 1, name: 'John Doe', phone: '+1 234-567-8901', address: '123 Main St, City', notes: 'Regular customer' },
-  { id: 2, name: 'Jane Smith', phone: '+1 234-567-8902', address: '456 Park Ave, Town', notes: 'Prefers email contact' },
-  { id: 3, name: 'Mike Johnson', phone: '+1 234-567-8903', address: '789 Oak Dr, Village', notes: 'New customer' },
-];
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const Customers: React.FC = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
-  const [customers, setCustomers] = useState(initialCustomers);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Fetch customers from Supabase
+  const { data: customers = [], isLoading } = useQuery({
+    queryKey: ['customers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Add customer mutation
+  const addCustomerMutation = useMutation({
+    mutationFn: async (newCustomer: { name: string; phone: string; address: string; notes: string }) => {
+      const { data, error } = await supabase
+        .from('customers')
+        .insert([{
+          name: newCustomer.name,
+          phone: newCustomer.phone,
+          address: newCustomer.address,
+          notes: newCustomer.notes
+        }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast({
+        title: "Customer Added",
+        description: `${data.name} has been successfully added`,
+      });
+      console.log("New customer added:", data);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to add customer",
+        variant: "destructive",
+      });
+      console.error("Error adding customer:", error);
+    }
+  });
+
+  // Delete customer mutation
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async (customerId: string) => {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customerId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast({
+        title: "Customer Deleted",
+        description: "Customer has been successfully deleted",
+        variant: "destructive",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete customer",
+        variant: "destructive",
+      });
+      console.error("Error deleting customer:", error);
+    }
+  });
 
   const handleAddCustomer = () => {
     setShowAddDialog(true);
@@ -34,19 +106,10 @@ const Customers: React.FC = () => {
   };
 
   const handleSubmitCustomer = (newCustomer: { name: string; phone: string; address: string; notes: string }) => {
-    const customer = {
-      id: Math.max(...customers.map(c => c.id)) + 1,
-      ...newCustomer
-    };
-    setCustomers([...customers, customer]);
-    toast({
-      title: "Customer Added",
-      description: `${newCustomer.name} has been successfully added`,
-    });
-    console.log("New customer added:", customer);
+    addCustomerMutation.mutate(newCustomer);
   };
 
-  const handleEditCustomer = (customerId: number) => {
+  const handleEditCustomer = (customerId: string) => {
     toast({
       title: "Edit Customer",
       description: `Editing customer with ID: ${customerId}`,
@@ -54,16 +117,20 @@ const Customers: React.FC = () => {
     console.log("Edit customer clicked for ID:", customerId);
   };
 
-  const handleDeleteCustomer = (customerId: number) => {
-    const updatedCustomers = customers.filter(customer => customer.id !== customerId);
-    setCustomers(updatedCustomers);
-    toast({
-      title: "Customer Deleted",
-      description: "Customer has been successfully deleted",
-      variant: "destructive",
-    });
+  const handleDeleteCustomer = (customerId: string) => {
+    deleteCustomerMutation.mutate(customerId);
     console.log("Delete customer clicked for ID:", customerId);
   };
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading customers...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -108,6 +175,7 @@ const Customers: React.FC = () => {
                         variant="destructive" 
                         size="sm"
                         onClick={() => handleDeleteCustomer(customer.id)}
+                        disabled={deleteCustomerMutation.isPending}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete

@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
   password: string;

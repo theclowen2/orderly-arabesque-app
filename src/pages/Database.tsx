@@ -1,14 +1,63 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Database } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const DatabasePage: React.FC = () => {
   const { t, language } = useLanguage();
+  const [tableCounts, setTableCounts] = useState({
+    customers: 0,
+    products: 0,
+    orders: 0,
+    users: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTableCounts = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch count of customers
+        const { count: customersCount } = await supabase
+          .from('customers')
+          .select('*', { count: 'exact', head: true });
+        
+        // Fetch count of products
+        const { count: productsCount } = await supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true });
+        
+        // Fetch count of orders
+        const { count: ordersCount } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true });
+        
+        // Fetch count of users
+        const { count: usersCount } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true });
+
+        setTableCounts({
+          customers: customersCount || 0,
+          products: productsCount || 0,
+          orders: ordersCount || 0,
+          users: usersCount || 0
+        });
+      } catch (error) {
+        console.error('Error fetching table counts:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTableCounts();
+  }, []);
 
   return (
     <Layout>
@@ -37,7 +86,9 @@ const DatabasePage: React.FC = () => {
                       <Database className="h-6 w-6 mr-3 text-primary" />
                       <div>
                         <p className="font-medium">Customers</p>
-                        <p className="text-sm text-muted-foreground">3 records</p>
+                        <p className="text-sm text-muted-foreground">
+                          {loading ? 'Loading...' : `${tableCounts.customers} records`}
+                        </p>
                       </div>
                     </div>
                     <Button variant="outline">View</Button>
@@ -48,7 +99,9 @@ const DatabasePage: React.FC = () => {
                       <Database className="h-6 w-6 mr-3 text-primary" />
                       <div>
                         <p className="font-medium">Products</p>
-                        <p className="text-sm text-muted-foreground">3 records</p>
+                        <p className="text-sm text-muted-foreground">
+                          {loading ? 'Loading...' : `${tableCounts.products} records`}
+                        </p>
                       </div>
                     </div>
                     <Button variant="outline">View</Button>
@@ -59,7 +112,9 @@ const DatabasePage: React.FC = () => {
                       <Database className="h-6 w-6 mr-3 text-primary" />
                       <div>
                         <p className="font-medium">Orders</p>
-                        <p className="text-sm text-muted-foreground">3 records</p>
+                        <p className="text-sm text-muted-foreground">
+                          {loading ? 'Loading...' : `${tableCounts.orders} records`}
+                        </p>
                       </div>
                     </div>
                     <Button variant="outline">View</Button>
@@ -70,7 +125,9 @@ const DatabasePage: React.FC = () => {
                       <Database className="h-6 w-6 mr-3 text-primary" />
                       <div>
                         <p className="font-medium">Users</p>
-                        <p className="text-sm text-muted-foreground">3 records</p>
+                        <p className="text-sm text-muted-foreground">
+                          {loading ? 'Loading...' : `${tableCounts.users} records`}
+                        </p>
                       </div>
                     </div>
                     <Button variant="outline">View</Button>

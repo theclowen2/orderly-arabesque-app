@@ -7,12 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { t, language, setLanguage } = useLanguage();
+  const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -21,12 +25,48 @@ const Login: React.FC = () => {
     }
   }, [navigate]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // For demo purposes, simple validation
-    if (email && password) {
+    setLoading(true);
+
+    try {
+      // Query the users table to validate credentials
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('password', password)
+        .single();
+
+      if (error || !users) {
+        toast({
+          title: "Login Failed",
+          description: "Invalid email or password",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // If credentials are valid, store user info and redirect
       localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('currentUser', JSON.stringify(users));
+      
+      toast({
+        title: "Login Successful",
+        description: `Welcome back, ${users.name}!`,
+      });
+      
       navigate('/');
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        title: "Login Error",
+        description: "An error occurred during login",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,6 +87,7 @@ const Login: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
             <div className="space-y-2">
@@ -57,9 +98,12 @@ const Login: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
-            <Button type="submit" className="w-full">{t('login')}</Button>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Logging in...' : t('login')}
+            </Button>
           </form>
         </CardContent>
         <CardFooter>

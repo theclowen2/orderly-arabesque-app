@@ -36,7 +36,7 @@ const Orders: React.FC = () => {
         .from('orders')
         .select(`
           *,
-          customers (name),
+          customers (name, phone),
           products (name, front_image)
         `)
         .order('created_at', { ascending: false });
@@ -45,6 +45,35 @@ const Orders: React.FC = () => {
       return data;
     }
   });
+
+  // Function to send SMS notification
+  const sendSMSNotification = async (customerPhone: string, customerName: string, productName: string) => {
+    try {
+      const message = `Hello ${customerName}, your order for ${productName} has been completed and is ready for pickup/delivery. Thank you for your business!`;
+      
+      const { error } = await supabase.functions.invoke('send-sms', {
+        body: {
+          to: customerPhone,
+          message: message,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "SMS Sent",
+        description: `Order completion SMS sent to ${customerName}`,
+      });
+      console.log("SMS notification sent successfully");
+    } catch (error) {
+      console.error("Error sending SMS:", error);
+      toast({
+        title: "SMS Error",
+        description: "Failed to send SMS notification, but order was updated",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Update order mutation
   const updateOrderMutation = useMutation({
@@ -60,19 +89,32 @@ const Orders: React.FC = () => {
           updated_at: new Date().toISOString()
         })
         .eq('id', updatedOrder.id)
-        .select()
+        .select(`
+          *,
+          customers (name, phone),
+          products (name)
+        `)
         .single();
       
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       toast({
         title: "Order Updated",
         description: "Order has been successfully updated",
       });
       console.log("Order updated:", data);
+
+      // Send SMS if order is completed and customer has phone number
+      if (data.status === 'completed' && data.customers?.phone) {
+        await sendSMSNotification(
+          data.customers.phone,
+          data.customers.name,
+          data.products.name
+        );
+      }
     },
     onError: (error) => {
       toast({

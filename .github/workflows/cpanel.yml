@@ -1,1 +1,60 @@
 
+name: Deploy to cPanel
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Deploy to cPanel via FTP
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.CPANEL_HOST }}
+        username: ${{ secrets.CPANEL_USERNAME }}
+        password: ${{ secrets.CPANEL_PASSWORD }}
+        local-dir: ./dist/
+        server-dir: ${{ secrets.CPANEL_DIRECTORY }}/
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          .htaccess
+          
+    - name: Create .htaccess for React Router
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.CPANEL_HOST }}
+        username: ${{ secrets.CPANEL_USERNAME }}
+        password: ${{ secrets.CPANEL_PASSWORD }}
+        local-dir: ./
+        server-dir: ${{ secrets.CPANEL_DIRECTORY }}/
+        include: |
+          .htaccess-production
+          
+    - name: Rename .htaccess file
+      run: |
+        echo "RewriteEngine On" > .htaccess-production
+        echo "RewriteCond %{REQUEST_FILENAME} !-f" >> .htaccess-production
+        echo "RewriteCond %{REQUEST_FILENAME} !-d" >> .htaccess-production
+        echo "RewriteRule . /index.html [L]" >> .htaccess-production

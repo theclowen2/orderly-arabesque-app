@@ -1,4 +1,5 @@
 
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -30,33 +31,50 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <LanguageProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            
-            {/* Protected routes */}
-            <Route path="/" element={<AuthRoute><Dashboard /></AuthRoute>} />
-            <Route path="/users" element={<AuthRoute><Users /></AuthRoute>} />
-            <Route path="/customers" element={<AuthRoute><Customers /></AuthRoute>} />
-            <Route path="/products" element={<AuthRoute><Products /></AuthRoute>} />
-            <Route path="/orders" element={<AuthRoute><Orders /></AuthRoute>} />
-            <Route path="/reports" element={<AuthRoute><Reports /></AuthRoute>} />
-            <Route path="/database" element={<AuthRoute><Database /></AuthRoute>} />
-            
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </LanguageProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  useEffect(() => {
+    // Disable right-click context menu globally
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      return false;
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    // Cleanup event listener on component unmount
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <LanguageProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              
+              {/* Protected routes */}
+              <Route path="/" element={<AuthRoute><Dashboard /></AuthRoute>} />
+              <Route path="/users" element={<AuthRoute><Users /></AuthRoute>} />
+              <Route path="/customers" element={<AuthRoute><Customers /></AuthRoute>} />
+              <Route path="/products" element={<AuthRoute><Products /></AuthRoute>} />
+              <Route path="/orders" element={<AuthRoute><Orders /></AuthRoute>} />
+              <Route path="/reports" element={<AuthRoute><Reports /></AuthRoute>} />
+              <Route path="/database" element={<AuthRoute><Database /></AuthRoute>} />
+              
+              {/* Catch-all route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </LanguageProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
